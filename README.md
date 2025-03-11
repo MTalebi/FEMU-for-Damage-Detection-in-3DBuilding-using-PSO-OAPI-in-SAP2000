@@ -1,8 +1,7 @@
 # FEMU for Damage Detection in 3D Buildings Using PSO-OAPI in SAP2000
 
 **Author:**  
-**Mohammad Talebi-Kalaleh**  
-<talebika@ualberta.ca>  
+**Mohammad Talebi-Kalaleh**
 
 **GitHub Repository:**  
 [https://github.com/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/tree/main](https://github.com/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/tree/main)
