@@ -6,11 +6,11 @@ The main script groups frame members, applies stiffness modifiers, runs a time h
 
 ## Repository contents
 
-- `/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/Main_SteelBuildingDDTH_Model_Updating.m`
+- `Main_SteelBuildingDDTH_Model_Updating.m`
   Main workflow. Connects to SAP2000, prepares groups and bounds, reads measured data, runs PSO, and plots results.
-- `/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/Objective_Fun.m`
+- `Objective_Fun.m`
   Objective function used by PSO. Applies modifiers, runs analysis, reads response, and returns normalized error.
-- `/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/3D Building Example in SAP2000/`
+- `3D Building Example in SAP2000/`
   Example SAP2000 model folder and measured acceleration text files.
 
 ## Requirements
@@ -72,13 +72,15 @@ Modifiers applied in `Objective_Fun.m`:
 
 Example files are under:
 
-`/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/3D Building Example in SAP2000/`
+`3D Building Example in SAP2000/`
 
 This folder includes:
 
 - `SAP 23 Model/2StoryFrame_RHA_Main.$2k`
 - `SAP 23 Model/2StoryFrame_RHA_Main.sbk`
 - measured acceleration files for points `8`, `9`, `29`, and `30`
+
+Note: the example folder does not include an `.sdb` file. Create or save an `.sdb` model in SAP2000 before running the script.
 
 ## Citation
 
