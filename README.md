@@ -1,136 +1,90 @@
-# FEMU for Damage Detection in 3D Buildings Using PSO-OAPI in SAP2000
+# FEMU for Damage Detection in 3D Building using PSO and SAP2000 OAPI
 
-**Author:**  
-**Mohammad Talebi-Kalaleh**
+This repository contains a MATLAB workflow that updates a SAP2000 structural model to match measured acceleration data.
 
-**GitHub Repository:**  
-[https://github.com/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/tree/main](https://github.com/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/tree/main)
+The main script groups frame members, applies stiffness modifiers, runs a time history analysis, and uses particle swarm optimization to minimize the mismatch between measured and simulated accelerations.
 
-**Publish Date:**  
-July 7, 2022
+## Repository contents
 
----
+- `/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/Main_SteelBuildingDDTH_Model_Updating.m`
+  Main workflow. Connects to SAP2000, prepares groups and bounds, reads measured data, runs PSO, and plots results.
+- `/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/Objective_Fun.m`
+  Objective function used by PSO. Applies modifiers, runs analysis, reads response, and returns normalized error.
+- `/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/3D Building Example in SAP2000/`
+  Example SAP2000 model folder and measured acceleration text files.
 
-## Overview
+## Requirements
 
-This documentation explains a MATLAB-based **Finite Element Model Updating (FEMU)** framework for **damage detection** in a 3D building model using **Particle Swarm Optimization (PSO)** in conjunction with the **SAP2000** Open Application Programming Interface (OAPI). The primary goal is to identify stiffness reduction (or damage) through modifying elements’ moments of inertia (beam/column/brace stiffness) until the simulated time-history response matches the **measured** acceleration data from sensors.
+- SAP2000 v23 installed.
+- MATLAB with Global Optimization Toolbox (`particleswarm`).
+- SAP2000 model file (`.sdb`).
+- Measured acceleration files (`Point<JointName>.txt`) with 3 columns:
+  1. Time
+  2. X acceleration
+  3. Y acceleration
 
-A summarized workflow is:
+## Important setup details from the current code
 
-1. **Main Script**  
-   - Initializes MATLAB and SAP2000 OAPI.  
-   - Defines model file paths, reads measured data, and configures the model for damage detection.  
-   - Groups structural elements into beams, columns, and braces, preparing them for parameter modifications.  
-   - Sets up the PSO (Particle Swarm Optimization) problem to find optimal stiffness modifiers.  
-   - Runs the optimization and visualizes measured vs. simulated accelerations.
+- The script uses these fixed local paths by default:
+  - `C:\Program Files\Computers and Structures\SAP2000 23\SAP2000.exe`
+  - `C:\Program Files\Computers and Structures\SAP2000 23\SAP2000v1.dll`
+- The script attaches to an already running SAP2000 instance using:
+  `helper.GetObject('CSI.SAP2000.API.SapObject')`
+- Sensor joints are read from SAP2000 group: `Sensor_Points`
+- Time history case selected for output and run: `RHA_Earthquacke`
+- The script also enables case `MODAL`
 
-2. **Objective_Fun.m**  
-   - Implements the cost function for PSO.  
-   - Applies stiffness modifiers to each group of elements (beams, columns, braces) in SAP2000.  
-   - Performs a time-history analysis and compares the results to measured accelerations.  
-   - Calculates a normalized error (mismatch) used by PSO to guide stiffness modification.
+## How to run
 
----
+1. Open SAP2000 and open your `.sdb` model.
+2. In MATLAB, run:
+   `Main_SteelBuildingDDTH_Model_Updating`
+3. Select:
+   - a `.sdb` file
+   - a `.txt` file inside the measured data folder
+4. The script then:
+   - saves a new model copy named `DamageCoefIdentified_<original_model_name>`
+   - creates frame groups based on assigned autoselect sections
+   - classifies groups as beam, column, or brace from element direction
+   - builds optimization variables and bounds
+   - runs PSO (`MaxIterations=30`, `SwarmSize=10`)
+   - evaluates the best solution and plots measured vs simulated X and Y acceleration for each sensor point
 
-## Main Script Explanation
+## Parameterization used in optimization
 
-Below is a condensed description of the primary sections in the main script:
+The number of variables is:
 
-1. **Clearing Workspace and Setting Up Files**  
-   - Resets the MATLAB environment and retrieves file paths for the SAP2000 model (`*.sdb`) and the measured acceleration data (`*.txt`).  
-   - The user is prompted to select the corresponding files/directories via `uigetfile`.
+`n_beam_groups + 2 * n_column_groups + n_brace_groups`
 
-2. **Creating the SAP2000 API Objects**  
-   - Loads the SAP2000 .NET assembly.  
-   - Acquires a handle to the currently running instance of SAP2000 and its main `SapModel` object.  
-   - Extracts interface objects like `FrameObj`, `Analyze`, `PropFrame`, `Group`, etc. to modify sections and retrieve analysis outputs.
+Bounds in the current script:
 
-3. **Model Copy and Units Setup**  
-   - Saves a new copy of the SAP2000 model (prefixed by `"DamageCoefIdentified_"`) for the damage detection run.  
-   - Unlocks the model so stiffness modifiers can be applied.  
-   - Changes the model units (e.g., kgf, cm) as needed.
+- Beams: `0.99` to `1.01`
+- Columns: `0.79` to `1.01`
+- Braces: `0.99` to `1.01`
 
-4. **Frame Grouping and Classification**  
-   - Fetches all frame names and sorts them by autoselect section.  
-   - Determines if each frame is a **Beam**, **Column**, or **Brace** by examining its orientation (vector in the global Z direction).  
-   - Sorts frames by elevation (Z-coordinate) so that beams come first, then columns, then braces.  
-   - Assigns each autoselect group to a dedicated SAP2000 Group for easy bulk modification.
+Modifiers applied in `Objective_Fun.m`:
 
-5. **Defining Optimization Variables**  
-   - **Number of Variables (nvars):** Derived from the count of beams, columns, and braces. For columns, two directions of stiffness modifiers are considered.  
-   - **Lower and Upper Bounds (lb, ub):** Specifies the permissible range for stiffness modifiers (moment of inertia scaling) for each element category.  
-   - An **initial guess (x0)** for the PSO is set to 1 (no modification).
+- Beam groups: modifier index 6
+- Column groups: modifier indices 5 and 6
+- Brace groups: modifier index 1
 
-6. **Analysis Setup**  
-   - Selects the required time-history load case for output (`TH_LoadCase_Name`).  
-   - Deselects other load cases to reduce unnecessary computations.  
-   - Configures analysis result options for direct- and modal-history output.
+## Included example data
 
-7. **Ingesting Measured Data**  
-   - Reads measured accelerations from text files for each sensor in the group `Output_Sensor_Joints`.  
-   - Stores the measured data in a MATLAB structure for later comparison.
+Example files are under:
 
-8. **Running PSO**  
-   - Defines the cost function handle (`fun`) pointing to the objective function script.  
-   - Creates a set of PSO options (`optimoptions('particleswarm', ...)`), specifying maximum iterations, swarm size, plotting functions, and display settings.  
-   - Calls MATLAB’s `particleswarm` to solve the optimization problem, returning the best set of stiffness modifiers (`x_min`).  
+`/tmp/workspace/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/3D Building Example in SAP2000/`
 
-9. **Results and Visualization**  
-   - With the optimal parameters found, the script again retrieves and plots simulated vs. measured accelerations for each sensor point.  
-   - The final mismatch (or **ResponseEstimationError**) is displayed, along with the total runtime in minutes.
+This folder includes:
 
----
+- `SAP 23 Model/2StoryFrame_RHA_Main.$2k`
+- `SAP 23 Model/2StoryFrame_RHA_Main.sbk`
+- measured acceleration files for points `8`, `9`, `29`, and `30`
 
-## Objective_Fun.m
+## Citation
 
-The **Objective_Fun.m** file calculates the cost for each trial solution (`x`) the PSO produces. A high-level overview:
+Talebi-Kalaleh, Mohammad (2022). FEMU for Damage Detection in 3D Building using PSO and OAPI in SAP2000.
+Repository: https://github.com/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000
 
-1. **Model Unlocked**  
-   - Ensures the model can be modified at each PSO iteration.
+## Contact
 
-2. **Apply Stiffness Modifiers**  
-   - Splits the input vector `x` into three parts:  
-     - **Beams** (single moment of inertia direction).  
-     - **Columns** (two directions for bending stiffness).  
-     - **Braces** (single direction, if applicable).  
-   - Uses the SAP2000 `SetModifiers` API call to assign these stiffness changes to entire groups at once.
-
-3. **Run Analysis and Retrieve Results**  
-   - Initiates the SAP2000 time-history analysis.  
-   - Extracts acceleration time histories at the sensor points.
-
-4. **Compute Error**  
-   - Interpolates the measured data onto the model’s time steps for a fair comparison.  
-   - Sums the **norm** of differences in both X and Y directions across all sensors.  
-   - Normalizes the error by the number of sensors and time points.  
-   - Returns this value to the PSO solver.
-
----
-
-## How to Cite
-
-If this framework or related code is helpful in your research, kindly cite:
-
-> **Talebi-Kalaleh, Mohammad.** (2022). *FEMU for Damage Detection in 3D Building using PSO and OAPI in SAP2000.* Published July 7, 2022. GitHub repository: [https://github.com/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/tree/main](https://github.com/MTalebi/FEMU-for-Damage-Detection-in-3DBuilding-using-PSO-OAPI-in-SAP2000/tree/main)
-
----
-
-## Additional Notes
-
-1. **Requirements**  
-   - SAP2000 v23 (or a compatible version) with OAPI enabled.  
-   - MATLAB with the Global Optimization Toolbox (for `particleswarm`).  
-   - A `.sdb` file and corresponding `.txt` measurement files.
-
-2. **Usage**  
-   - Launch MATLAB and run the main script.  
-   - Select the SAP2000 `.sdb` model and the folder with sensor `.txt` files when prompted.  
-   - The script saves a new SAP2000 model file, executes the PSO-based damage detection, and plots measured vs. simulated accelerations.
-
-3. **Potential Extensions**  
-   - Consider more advanced damage models (e.g., changes in mass, damping, or localized changes in cross-sectional properties).  
-   - Implement multi-objective approaches that account for multiple response types or multiple damage states.  
-   - Adjust the PSO parameters (iterations, swarm size) for a balance between runtime and solution quality.
-
-For more information or collaboration inquiries, contact:  
-**talebika@ualberta.ca**
+talebika@ualberta.ca
